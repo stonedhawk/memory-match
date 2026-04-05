@@ -339,6 +339,41 @@
       color: #6366f1;
       margin-right: 2px;
     }
+
+    /* Board entrance: cards deal in */
+    .card-outer {
+      animation: dealIn 0.35s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+    }
+
+    @keyframes dealIn {
+      from { transform: scale(0.5) translateY(-20px); opacity: 0; }
+      to   { transform: scale(1)   translateY(0);     opacity: 1; }
+    }
+
+    /* Smooth transition on stat-value changes */
+    .stat-value {
+      transition: color 0.3s ease;
+    }
+
+    /* Pulse matched card once */
+    .card-outer.matched .card-front {
+      animation: matchedPulse 0.5s ease;
+    }
+
+    @keyframes matchedPulse {
+      0%   { transform: rotateY(180deg) scale(1); }
+      40%  { transform: rotateY(180deg) scale(1.12); }
+      100% { transform: rotateY(180deg) scale(1); }
+    }
+
+    /* Mobile: tighter padding */
+    @media (max-width: 480px) {
+      body { padding: 16px 8px; }
+      .difficulty-bar { gap: 6px; }
+      .diff-btn { padding: 6px 14px; font-size: 0.8rem; }
+      .stats-bar { gap: 20px; }
+      .stat-value { font-size: 1.3rem; }
+    }
   </style>
 </head>
 <body>
@@ -573,7 +608,12 @@
                 <div
                   key={card.id}
                   className={`card-outer${card.flipped ? ' flipped' : ''}${card.matched ? ' matched' : ''}`}
-                  style={{ width: cardSize, height: cardSize, '--emoji-size': `${emojiSize}px` }}
+                  style={{
+                    width: cardSize,
+                    height: cardSize,
+                    '--emoji-size': `${emojiSize}px`,
+                    animationDelay: `${idx * 30}ms`,
+                  }}
                   onClick={() => handleCardClick(idx)}
                 >
                   <div className="card-inner">
