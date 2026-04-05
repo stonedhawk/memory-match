@@ -153,6 +153,43 @@
       border-color: #6366f1;
       box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255,255,255,0.08);
     }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 32px;
+      margin-bottom: 24px;
+      justify-content: center;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .stat-value span {
+      font-size: 1rem;
+      color: #6366f1;
+      margin-right: 2px;
+    }
   </style>
 </head>
 <body>
@@ -199,6 +236,12 @@
       return Math.max(size, 56);
     }
 
+    function formatTime(secs) {
+      const m = Math.floor(secs / 60).toString().padStart(2, '0');
+      const s = (secs % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
     function App() {
       const [difficulty, setDifficulty] = useState('Easy');
       const [cards, setCards] = useState(() => buildDeck(4, 4));
@@ -206,15 +249,36 @@
       const [selected, setSelected] = useState([]);
       // Block clicks while checking a pair
       const [locked, setLocked] = useState(false);
+      // Game stats
+      const [moves, setMoves] = useState(0);
+      const [elapsed, setElapsed] = useState(0);
+      const [timerActive, setTimerActive] = useState(false);
+      const [won, setWon] = useState(false);
 
       const { cols, rows } = DIFFICULTIES[difficulty];
+      const totalPairs = (cols * rows) / 2;
 
-      function handleDifficulty(name) {
-        setDifficulty(name);
-        const d = DIFFICULTIES[name];
+      // Timer tick
+      useEffect(() => {
+        if (!timerActive) return;
+        const id = setInterval(() => setElapsed(e => e + 1), 1000);
+        return () => clearInterval(id);
+      }, [timerActive]);
+
+      function resetGame(diffName) {
+        const d = DIFFICULTIES[diffName];
         setCards(buildDeck(d.cols, d.rows));
         setSelected([]);
         setLocked(false);
+        setMoves(0);
+        setElapsed(0);
+        setTimerActive(false);
+        setWon(false);
+      }
+
+      function handleDifficulty(name) {
+        setDifficulty(name);
+        resetGame(name);
       }
 
       function handleCardClick(idx) {
@@ -222,7 +286,9 @@
         if (locked) return;
         if (cards[idx].matched) return;
         if (selected.includes(idx)) return;
-        if (selected.length === 1 && selected[0] === idx) return;
+
+        // Start timer on first flip
+        if (!timerActive && !won) setTimerActive(true);
 
         // Flip the card
         const newCards = cards.map((c, i) =>
@@ -230,21 +296,31 @@
         );
 
         if (selected.length === 0) {
-          // First card
+          // First card of pair
           setCards(newCards);
           setSelected([idx]);
         } else {
-          // Second card - check for match
+          // Second card - this counts as one move attempt
           setLocked(true);
           setCards(newCards);
+          setMoves(m => m + 1);
           const firstIdx = selected[0];
 
           if (newCards[firstIdx].emoji === newCards[idx].emoji) {
-            // Match! Mark both as matched
+            // Match - mark both matched
             setTimeout(() => {
-              setCards(prev => prev.map((c, i) =>
-                i === firstIdx || i === idx ? { ...c, matched: true, flipped: false } : c
-              ));
+              setCards(prev => {
+                const updated = prev.map((c, i) =>
+                  i === firstIdx || i === idx ? { ...c, matched: true, flipped: false } : c
+                );
+                // Check win: all cards matched
+                const matchedCount = updated.filter(c => c.matched).length;
+                if (matchedCount === updated.length) {
+                  setTimerActive(false);
+                  setWon(true);
+                }
+                return updated;
+              });
               setSelected([]);
               setLocked(false);
             }, 600);
@@ -279,6 +355,18 @@
                 {name}
               </button>
             ))}
+          </div>
+
+          {/* Stats bar */}
+          <div className="stats-bar">
+            <div className="stat">
+              <span className="stat-label">Moves</span>
+              <div className="stat-value"><span>#</span>{moves}</div>
+            </div>
+            <div className="stat">
+              <span className="stat-label">Time</span>
+              <div className="stat-value"><span>&#9201;</span>{formatTime(elapsed)}</div>
+            </div>
           </div>
 
           {/* Board */}
