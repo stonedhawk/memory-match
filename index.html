@@ -202,6 +202,10 @@
     function App() {
       const [difficulty, setDifficulty] = useState('Easy');
       const [cards, setCards] = useState(() => buildDeck(4, 4));
+      // Indices of currently face-up (non-matched) selected cards
+      const [selected, setSelected] = useState([]);
+      // Block clicks while checking a pair
+      const [locked, setLocked] = useState(false);
 
       const { cols, rows } = DIFFICULTIES[difficulty];
 
@@ -209,6 +213,52 @@
         setDifficulty(name);
         const d = DIFFICULTIES[name];
         setCards(buildDeck(d.cols, d.rows));
+        setSelected([]);
+        setLocked(false);
+      }
+
+      function handleCardClick(idx) {
+        // Ignore if locked, already flipped, or already matched
+        if (locked) return;
+        if (cards[idx].matched) return;
+        if (selected.includes(idx)) return;
+        if (selected.length === 1 && selected[0] === idx) return;
+
+        // Flip the card
+        const newCards = cards.map((c, i) =>
+          i === idx ? { ...c, flipped: true } : c
+        );
+
+        if (selected.length === 0) {
+          // First card
+          setCards(newCards);
+          setSelected([idx]);
+        } else {
+          // Second card - check for match
+          setLocked(true);
+          setCards(newCards);
+          const firstIdx = selected[0];
+
+          if (newCards[firstIdx].emoji === newCards[idx].emoji) {
+            // Match! Mark both as matched
+            setTimeout(() => {
+              setCards(prev => prev.map((c, i) =>
+                i === firstIdx || i === idx ? { ...c, matched: true, flipped: false } : c
+              ));
+              setSelected([]);
+              setLocked(false);
+            }, 600);
+          } else {
+            // No match - flip both back after 800ms
+            setTimeout(() => {
+              setCards(prev => prev.map((c, i) =>
+                i === firstIdx || i === idx ? { ...c, flipped: false } : c
+              ));
+              setSelected([]);
+              setLocked(false);
+            }, 800);
+          }
+        }
       }
 
       const cardSize = getCardSize(cols);
@@ -240,11 +290,12 @@
                 gridTemplateRows: `repeat(${rows}, ${cardSize}px)`,
               }}
             >
-              {cards.map(card => (
+              {cards.map((card, idx) => (
                 <div
                   key={card.id}
                   className={`card-outer${card.flipped ? ' flipped' : ''}${card.matched ? ' matched' : ''}`}
                   style={{ width: cardSize, height: cardSize, '--emoji-size': `${emojiSize}px` }}
+                  onClick={() => handleCardClick(idx)}
                 >
                   <div className="card-inner">
                     <div className="card-face card-back">
